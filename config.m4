@@ -5,7 +5,7 @@ PHP_ARG_ENABLE(funcmap, whether to enable funcmap support,
 
 if test "$PHP_FUNCMAP" != "no"; then
   orig_LIBS="$LIBS"
-  LIBS="$LIBS -lpthread"
+  LIBS="$LIBS -pthread"
   AC_MSG_CHECKING([for pthread_atfork()])
   AC_TRY_RUN(
   [
@@ -26,8 +26,8 @@ main() {
   ],
   [ dnl -Success-
     AC_MSG_RESULT([ok])
-    PHP_ADD_LIBRARY(pthread)
-    PHP_LDFLAGS="$PHP_LDFLAGS -lpthread"
+    PHP_ADD_LIBRARY(pthread, 1, FUNCMAP_SHARED_LIBADD)
+    PHP_LDFLAGS="$PHP_LDFLAGS -pthread"
   ],
   [ dnl -Failure-
     AC_MSG_ERROR([Pthreads are broken in your system?])
@@ -35,9 +35,10 @@ main() {
   [ dnl -Cross-compiling-
     dnl *fingers crossed*
     AC_MSG_RESULT([ok])
-    PHP_ADD_LIBRARY(pthread)
-    PHP_LDFLAGS="$PHP_LDFLAGS -lpthread"
+    PHP_ADD_LIBRARY(pthread, 1, FUNCMAP_SHARED_LIBADD)
+    PHP_LDFLAGS="$PHP_LDFLAGS -pthread"
   ])
   LIBS="$orig_LIBS"
+  PHP_SUBST(FUNCMAP_SHARED_LIBADD)
   PHP_NEW_EXTENSION(funcmap, funcmap.c, $ext_shared)
 fi
