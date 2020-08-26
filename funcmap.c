@@ -172,14 +172,14 @@ static char *php_funcmap_get_logfile(void) /* {{{ */
 		char *real_logfile = NULL;
 		pid_t pid = getpid();
 
-		spprintf(&real_logfile, 1024, "%.*s%ld%s", pid_pattern - logfile, logfile, (long)pid, pid_pattern + strlen("%pid%"));
+		spprintf(&real_logfile, 1024, "%.*s%ld%s", (int)(pid_pattern - logfile), logfile, (long)pid, pid_pattern + strlen("%pid%"));
 		return real_logfile;
 	}
 	return estrdup(logfile);
 }
 /* }}} */
 
-static void php_funcmap_write_and_cleanup_map(void) /* {{{ */
+static void php_funcmap_write_and_cleanup_map(int in_shutdown) /* {{{ */
 {
 	char *logfile = php_funcmap_get_logfile();
 	
@@ -190,7 +190,11 @@ static void php_funcmap_write_and_cleanup_map(void) /* {{{ */
 
 	FILE *fp = fopen(logfile, "a");
 	if (!fp) {
-		zend_error(E_CORE_WARNING, "failed to open file %s for writing: %s", logfile, strerror(errno));
+		if (in_shutdown) {
+			fprintf(stderr, "failed to open file %s for writing: %s", logfile, strerror(errno));
+		} else {
+			zend_error(E_CORE_WARNING, "failed to open file %s for writing: %s", logfile, strerror(errno));
+		}
 		efree(logfile);
 		return;
 	}
@@ -272,7 +276,7 @@ PHP_MSHUTDOWN_FUNCTION(funcmap)
 		zend_execute_ex = funcmap_old_execute_ex;
 
 		if (funcmap_enabled_real) {
-			php_funcmap_write_and_cleanup_map();
+			php_funcmap_write_and_cleanup_map(1);
 		}
 		zend_hash_destroy(&funcmap_hash);
 	}
@@ -405,7 +409,7 @@ void funcmap_execute_ex(zend_execute_data *execute_data) /* {{{ */
 			time_t now = time(NULL);
 
 			if (funcmap_next_flush_time < now) {
-				php_funcmap_write_and_cleanup_map();
+				php_funcmap_write_and_cleanup_map(0);
 				funcmap_next_flush_time = now + FUNCMAP_G(flush_interval_sec);
 			}
 		}
