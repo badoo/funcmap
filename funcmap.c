@@ -108,7 +108,7 @@ static char *fm_get_function_name(zend_execute_data *execute_data) /* {{{ */
 
 	char *escaped_fname = NULL;
 	if (function_name) {
-		int fname_len, backslashes = 0;
+		int i, fname_len, backslashes = 0;
 
 		if (class_name[0] != '\0') {
 			fname_len = spprintf(&current_fname, 1024, "%s::%s\n", class_name, function_name);
@@ -117,7 +117,7 @@ static char *fm_get_function_name(zend_execute_data *execute_data) /* {{{ */
 		}
 
 		//count backslashes
-		for (int i = 0; i < fname_len; i++) {
+		for (i = 0; i < fname_len; i++) {
 			if (current_fname[i] == '\\') {
 				backslashes++;
 			}
@@ -130,7 +130,7 @@ static char *fm_get_function_name(zend_execute_data *execute_data) /* {{{ */
 			//escape the backslashes that LSD doesn't like
 			escaped_fname = emalloc(fname_len + backslashes + 1);
 			p = escaped_fname;
-			for (int i = 0; i < fname_len + 1/* copy \0 */; i++) {
+			for (i = 0; i < fname_len + 1/* copy \0 */; i++) {
 				if (current_fname[i] == '\\') {
 					*p = '\\';
 					p++;
