@@ -23,6 +23,8 @@
 #endif
 
 #include "pthread.h"
+#include <sys/stat.h>
+#include <inttypes.h>
 
 #include "php.h"
 #include "php_ini.h"
@@ -53,14 +55,14 @@ time_t funcmap_next_flush_time = 0;
 void (*funcmap_old_execute_ex)(zend_execute_data *execute_data);
 void funcmap_execute_ex(zend_execute_data *execute_data);
 void (*funcmap_old_execute_internal)(zend_execute_data *current_execute_data, zval *return_value);
-void funcmap_execute_internal(zend_execute_data *current_execute_data, zval *return_value);
 
 static char *fm_get_function_name(zend_execute_data *execute_data) /* {{{ */
 {
 	zend_bool free_classname = 0;
 	zend_object *object = NULL;
 	zend_function *func = NULL;
-	char *class_name = NULL, *current_fname = NULL, *function_name = NULL;
+	char *class_name = NULL, *current_fname = NULL;
+	const char *function_name = NULL;
 	const char *space;
 
 	if (execute_data && execute_data->func) {
@@ -69,13 +71,23 @@ static char *fm_get_function_name(zend_execute_data *execute_data) /* {{{ */
 		object = (Z_TYPE(execute_data->This) == IS_OBJECT) ? Z_OBJ(execute_data->This) : NULL;
 
 		func = execute_data->func;
-		zend_function_name = func->common.function_name;
+#if PHP_MAJOR_VERSION <= 7
+		if (func->common.scope && func->common.scope->trait_aliases) {
+			zend_function_name = zend_resolve_method_name(object ? object->ce : func->common.scope, func);
+		} else {
+			zend_function_name = func->common.function_name;
+		}
 
 		if (zend_function_name != NULL) {
 			function_name = ZSTR_VAL(zend_function_name);
 		} else {
 			function_name = NULL;
 		}
+#else
+		if (func->common.function_name) {
+			function_name = ZSTR_VAL(func->common.function_name);
+		}
+#endif
 	} else {
 		func = NULL;
 		function_name = NULL;
@@ -168,9 +180,15 @@ static char *php_funcmap_get_logfile(void) /* {{{ */
 		char *real_logfile = NULL;
 		pid_t pid = getpid();
 
-		spprintf(&real_logfile, 1024, "%.*s%ld%s", (int)(pid_pattern - logfile), logfile, (long)pid, pid_pattern + strlen("%pid%"));
+		spprintf(&real_logfile, 1024,
+				"%.*s" ZEND_LONG_FMT "%s",
+				(int)(pid_pattern - logfile),
+				logfile,
+				(zend_long)pid,
+				pid_pattern + strlen("%pid%"));
 		return real_logfile;
 	}
+
 	return estrdup(logfile);
 }
 /* }}} */
@@ -363,14 +381,24 @@ static PHP_FUNCTION(funcmap_enable) /* {{{ */
 }
 /* }}} */
 
+static PHP_FUNCTION(funcmap_flush) /* {{{ */
+{
+	php_funcmap_write_and_cleanup_map();
+	RETURN_TRUE;
+}
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_funcmap_enable, 0, 0, 1)
 	ZEND_ARG_INFO(0, enable)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_funcmap_flush, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
 /* {{{ funcmap_functions[]
  */
 zend_function_entry funcmap_functions[] = {
 	PHP_FE(funcmap_enable, arginfo_funcmap_enable)
+	PHP_FE(funcmap_flush, arginfo_funcmap_flush)
 	{NULL, NULL, NULL}
 };
 /* }}} */
