@@ -10,6 +10,7 @@ if test "$PHP_FUNCMAP" != "no"; then
   AC_TRY_RUN(
   [
 #include <pthread.h>
+#include <stdio.h>
 void pthread_atfork_test(void)
 {
 
