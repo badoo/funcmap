@@ -69,11 +69,7 @@ static char *fm_get_function_name(zend_execute_data *execute_data) /* {{{ */
 		object = (Z_TYPE(execute_data->This) == IS_OBJECT) ? Z_OBJ(execute_data->This) : NULL;
 
 		func = execute_data->func;
-		if (func->common.scope && func->common.scope->trait_aliases) {
-			zend_function_name = zend_resolve_method_name(object ? object->ce : func->common.scope, func);
-		} else {
-			zend_function_name = func->common.function_name;
-		}
+		zend_function_name = func->common.function_name;
 
 		if (zend_function_name != NULL) {
 			function_name = ZSTR_VAL(zend_function_name);
