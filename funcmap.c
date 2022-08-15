@@ -383,7 +383,7 @@ static PHP_FUNCTION(funcmap_enable) /* {{{ */
 
 static PHP_FUNCTION(funcmap_flush) /* {{{ */
 {
-	php_funcmap_write_and_cleanup_map();
+	php_funcmap_write_and_cleanup_map(0);
 	RETURN_TRUE;
 }
 
