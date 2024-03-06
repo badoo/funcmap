@@ -11,13 +11,13 @@ try {
     funcmap_enable(true);
 
     class Test {
-        function test() {
+        function print() {
             echo "code works\n";
         }
     }
 
     for ($i = 0; $i < 5; ++ $i) {
-        (new Test)->test();
+        (new Test)->print();
     }
 
     funcmap_enable(false);
@@ -40,4 +40,4 @@ code works
 code works
 code works
 logfile: funcmap-%d.log:
-Test::test
+Test::print

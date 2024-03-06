@@ -205,13 +205,27 @@ static void php_funcmap_write_and_cleanup_map(int in_shutdown) /* {{{ */
 	FILE *fp = fopen(logfile, "a");
 	if (!fp) {
 		if (in_shutdown) {
-			fprintf(stderr, "failed to open file %s for writing: %s", logfile, strerror(errno));
+			fprintf(stderr, "[funcmap] failed to open file %s for writing: %s", logfile, strerror(errno));
 		} else {
-			zend_error(E_CORE_WARNING, "failed to open file %s for writing: %s", logfile, strerror(errno));
+			zend_error(E_CORE_WARNING, "[funcmap] failed to open file %s for writing: %s", logfile, strerror(errno));
 		}
 		efree(logfile);
+		zend_hash_clean(&funcmap_hash);
 		return;
 	}
+
+	if (chmod(logfile, FUNCMAP_G(file_mode)) != 0) {
+		if (in_shutdown) {
+			fprintf(stderr, "[funcmap] failed to set permissions on file %s: %s", logfile, strerror(errno));
+		} else {
+			zend_error(E_CORE_WARNING, "[funcmap] failed to set permissions on file %s: %s", logfile, strerror(errno));
+		}
+		efree(logfile);
+		fclose(fp);
+		zend_hash_clean(&funcmap_hash);
+		return;
+	}
+
 	efree(logfile);
 
 	zend_string *key;
@@ -234,8 +248,8 @@ static void php_funcmap_atfork_child(void) /* {{{ */
 			//in order to get different result in children
 			BG(mt_rand_is_seeded) = 0;
 
-			long rand_num = php_mt_rand_common(1, 100);
-			if (rand_num <= FUNCMAP_G(probability)) {
+			long rand_num = php_mt_rand_common(1, 10000);
+			if (rand_num <= (long)(FUNCMAP_G(probability) * 100)) {
 				funcmap_enabled_real = 1;
 			} else {
 				funcmap_enabled_real = 0;
@@ -259,7 +273,8 @@ static void php_funcmap_atfork_child(void) /* {{{ */
 PHP_INI_BEGIN()
     STD_PHP_INI_ENTRY("funcmap.enabled",         "0", PHP_INI_SYSTEM, OnUpdateBool, enabled, zend_funcmap_globals, funcmap_globals)
     STD_PHP_INI_ENTRY("funcmap.logfile",         "", PHP_INI_ALL, OnUpdateString, logfile, zend_funcmap_globals, funcmap_globals)
-    STD_PHP_INI_ENTRY("funcmap.probability",     "100", PHP_INI_SYSTEM, OnUpdateLong, probability, zend_funcmap_globals, funcmap_globals)
+    STD_PHP_INI_ENTRY("funcmap.file_mode",       "0664", PHP_INI_SYSTEM, OnUpdateLong, file_mode, zend_funcmap_globals, funcmap_globals)
+    STD_PHP_INI_ENTRY("funcmap.probability",     "100", PHP_INI_SYSTEM, OnUpdateReal, probability, zend_funcmap_globals, funcmap_globals)
     STD_PHP_INI_ENTRY("funcmap.flush_interval_sec", "0", PHP_INI_ALL, OnUpdateLong, flush_interval_sec, zend_funcmap_globals, funcmap_globals)
 PHP_INI_END()
 /* }}} */
@@ -309,8 +324,8 @@ PHP_RINIT_FUNCTION(funcmap)
 	//the extension is enabled, but should we start the logging?
 	funcmap_enabled_real = 1;
 	if (FUNCMAP_G(probability) < 100) {
-		long rand_num = php_mt_rand_common(1, 100);
-		if (rand_num < FUNCMAP_G(probability)) {
+		long rand_num = php_mt_rand_common(1, 10000);
+		if (rand_num < (long)(FUNCMAP_G(probability) * 100)) {
 			funcmap_enabled_real = 1;
 		} else {
 			funcmap_enabled_real = 0;

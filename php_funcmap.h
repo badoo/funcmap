@@ -33,7 +33,8 @@ extern zend_module_entry funcmap_module_entry;
 ZEND_BEGIN_MODULE_GLOBALS(funcmap)
 	zend_bool enabled;
 	char *logfile;
-	int probability;
+	int file_mode;
+	double probability;
 	int flush_interval_sec;
 ZEND_END_MODULE_GLOBALS(funcmap)
 
